@@ -15,17 +15,16 @@
  */
 package se.transmode.gradle.plugins.docker
 
-import static org.hamcrest.Matchers.*
-import static org.junit.Assert.*
-
 import org.gradle.api.Project
 import org.gradle.testfixtures.ProjectBuilder
-import org.hamcrest.Matchers
 import org.junit.Test
-
 import se.transmode.gradle.plugins.docker.client.DockerClient
-import se.transmode.gradle.plugins.docker.client.JavaDockerClient;
+import se.transmode.gradle.plugins.docker.client.JavaDockerClient
 import se.transmode.gradle.plugins.docker.client.NativeDockerClient
+
+import static org.hamcrest.Matchers.equalToIgnoringCase
+import static org.hamcrest.Matchers.isA
+import static org.junit.Assert.assertThat
 
 class DockerTaskBaseTest {
 
@@ -35,7 +34,7 @@ class DockerTaskBaseTest {
     private static final String TAG_VERSION = 'tagVersion'
     
     // Create dummy task sub-class so we can test the functionality provided by the super-class
-    public static class DummyTask extends DockerTaskBase {
+    public static class DummyTask extends DockerTask {
         
     }
     
