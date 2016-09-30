@@ -72,3 +72,28 @@ apply plugin: 'maven'
 //        }
 //    }
 //}
+
+gradlePlugin {
+    plugins {
+        docker {
+            id = "se.transmode.docker"
+            implementationClass = "se.transmode.gradle.plugins.docker.DockerPlugin"
+            version = project.version
+        }
+    }
+}
+
+//pluginBundle {
+//    website = 'http://www.gradle.org/'
+//    vcsUrl = 'https://github.com/gradle/gradle'
+//    description = 'Greetings from here!'
+//    tags = ['greetings', 'salutations']
+//
+//    plugins {
+//        'gradle-docker' {
+//            id = "se.transmode.gradle.docker"
+////            implementationClass = "se.transmode.gradle.plugins.docker.DockerPlugin"
+//            displayName = 'Gradle Docker Plugin'
+//        }
+//    }
+//}

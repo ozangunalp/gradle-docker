@@ -32,6 +32,10 @@ class DockerfileTest {
             'CMD /bin/bash'
     ]
 
+    private String returnClosure() {
+        return "something"
+    }
+
     @Rule
     public TemporaryFolder testFolder = new TemporaryFolder()
 
@@ -47,6 +51,7 @@ class DockerfileTest {
     void fromBase() {
         final dockerfile = new Dockerfile(new File("contextDir"))
         dockerfile.from(BASE_IMAGE)
+        dockerfile.buildInstructions()
         assertThat(dockerfile.instructions,
                 equalTo(["FROM ${BASE_IMAGE}".toString()]))
     }
@@ -69,6 +74,7 @@ class DockerfileTest {
             foo('bar', 42)
             bar 'All work and no play makes Jack a dull boy'
         }
+        dockerfile.buildInstructions()
         assertThat(dockerfile.instructions,
                 equalTo(['FOO bar 42',
                          'BAR All work and no play makes Jack a dull boy']))
@@ -78,6 +84,7 @@ class DockerfileTest {
     void cmdWithString() {
         final dockerfile = new Dockerfile(new File("contextDir"))
         dockerfile.cmd '/bin/bash'
+        dockerfile.buildInstructions()
         assertThat dockerfile.instructions, is(equalTo(['CMD /bin/bash']))
     }
 
@@ -85,6 +92,7 @@ class DockerfileTest {
     void cmdWithList() {
         final dockerfile = new Dockerfile(new File("contextDir"))
         dockerfile.cmd(['/bin/bash', '-i'])
+        dockerfile.buildInstructions()
         assertThat dockerfile.instructions, is(equalTo(['CMD ["/bin/bash", "-i"]']))
     }
 
@@ -112,6 +120,7 @@ class DockerfileTest {
         final URL url = new URL('http', 'localhost', 8080, '/download/myapp.tar')
 
         dockerfile.add url
+        dockerfile.buildInstructions()
         assertThat dockerfile.instructions, is(equalTo(["ADD ${url.toString()} /".toString()]))
     }
 
@@ -121,6 +130,7 @@ class DockerfileTest {
         final String url = 'http://foo.bar/file.tar'
 
         dockerfile.add url, '/target'
+        dockerfile.buildInstructions()
         assertThat dockerfile.instructions, is(equalTo(["ADD ${url} /target".toString()]))
     }
 
@@ -131,6 +141,7 @@ class DockerfileTest {
         final File file = new File('/tmp/adke')
 
         dockerfile.add file, '/target'
+        dockerfile.buildInstructions()
         assertThat dockerfile.instructions, is(equalTo(["ADD ${file.name} /target".toString()]))
     }
 
@@ -140,6 +151,7 @@ class DockerfileTest {
         final File file = new File('gradle/wrapper')
 
         dockerfile.add file, '/gradle'
+        dockerfile.buildInstructions()
         assertThat dockerfile.instructions, is(equalTo(['ADD wrapper /gradle']))
     }
 
@@ -149,6 +161,7 @@ class DockerfileTest {
         final String file = 'gradle/wrapper/gradle-wrapper.properties'
 
         dockerfile.add file, '/target'
+        dockerfile.buildInstructions()
         assertThat dockerfile.instructions, is(equalTo(['ADD gradle-wrapper.properties /target']))
     }
 
@@ -161,6 +174,7 @@ class DockerfileTest {
             into('dest/bar')
             exclude '*~'
         }
+        dockerfile.buildInstructions()
         assertThat dockerfile.instructions, is(equalTo(['ADD add_1.tar /']))
     }
 
@@ -170,6 +184,7 @@ class DockerfileTest {
         final File file = new File('tmp/wetoy')
 
         dockerfile.copy file, '/foo'
+        dockerfile.buildInstructions()
         assertThat dockerfile.instructions, is(equalTo(['COPY wetoy /foo']))
     }
 
@@ -179,6 +194,7 @@ class DockerfileTest {
         final String path = 'asdrlu/foo'
 
         dockerfile.copy path, '/bar'
+        dockerfile.buildInstructions()
         assertThat dockerfile.instructions, is(equalTo(['COPY foo /bar']))
     }
 
@@ -191,6 +207,7 @@ class DockerfileTest {
             into('dest/bar')
             exclude '*~'
         }
+        dockerfile.buildInstructions()
         assertThat dockerfile.instructions, is(equalTo(['COPY copy_1.tar /']))
     }
 
@@ -201,6 +218,7 @@ class DockerfileTest {
             CMD('/bin/bash')
         }
         dockerfile.ENV('FOO=bar')
+        dockerfile.buildInstructions()
         assertThat(dockerfile.instructions,
                 equalTo(['CMD /bin/bash',
                          'ENV FOO=bar']))
@@ -212,6 +230,7 @@ class DockerfileTest {
         dockerfile.with {
             expose 8080
         }
+        dockerfile.buildInstructions()
         assertThat(dockerfile.instructions, equalTo(['EXPOSE 8080']))
     }
 
@@ -221,6 +240,7 @@ class DockerfileTest {
         dockerfile.with {
             expose 8080, 8081, 9090
         }
+        dockerfile.buildInstructions()
         assertThat(dockerfile.instructions, equalTo(['EXPOSE 8080 8081 9090']))
     }
 
@@ -230,6 +250,29 @@ class DockerfileTest {
         dockerfile.with {
             expose '162/udp'
         }
+        dockerfile.buildInstructions()
         assertThat(dockerfile.instructions, equalTo(['EXPOSE 162/udp']))
+    }
+
+    @Test
+    void propertyClosure() {
+        final dockerfile = new Dockerfile(new File("contextDir"))
+        dockerfile.with {
+            expose {
+                "something"
+            }
+        }
+        dockerfile.buildInstructions()
+        assertThat(dockerfile.instructions, equalTo(['EXPOSE something']))
+    }
+
+    @Test
+    void propertyMethod() {
+        final dockerfile = new Dockerfile(new File("contextDir"))
+        dockerfile.with {
+            expose returnClosure()
+        }
+        dockerfile.buildInstructions()
+        assertThat(dockerfile.instructions, equalTo(['EXPOSE something']))
     }
  }

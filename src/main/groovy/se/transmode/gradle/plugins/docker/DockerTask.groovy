@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 package se.transmode.gradle.plugins.docker
+
 import com.google.common.annotations.VisibleForTesting
-import com.google.common.io.Files
 import org.gradle.api.Task
 import org.gradle.api.logging.Logger
 import org.gradle.api.logging.Logging
@@ -135,6 +135,7 @@ class DockerTask extends DockerTaskBase {
         if (getMaintainer()) {
             dockerfile.maintainer(getMaintainer())
         }
+        dockerfile.buildInstructions()
         return dockerfile.appendAll(instructions)
     }
 

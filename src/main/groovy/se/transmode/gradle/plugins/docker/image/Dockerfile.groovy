@@ -15,6 +15,8 @@
  */
 package se.transmode.gradle.plugins.docker.image
 
+import com.google.common.collect.LinkedListMultimap
+import com.google.common.collect.Multimap
 import com.google.common.io.Files
 import org.gradle.api.logging.Logger
 import org.gradle.api.logging.Logging
@@ -23,6 +25,7 @@ class Dockerfile {
     private static Logger log = Logging.getLogger(Dockerfile)
 
     private List<String> instructions
+    private Multimap<String, List<Object>> ongoingInstructions;
     private List<String> baseInstructions
     private File contextDir
     // Actions needed to setup the build stage before building an image
@@ -41,6 +44,7 @@ class Dockerfile {
         this.copyCallback = copyCallback
         this.baseInstructions = []
         this.instructions = []
+        this.ongoingInstructions = LinkedListMultimap.create()
         this.stagingBacklog = []
     }
 
@@ -52,6 +56,27 @@ class Dockerfile {
     Dockerfile appendAll(List instructions) {
         this.instructions.addAll(instructions*.toString())
         return this
+    }
+
+    Dockerfile appendOngoing(String name, Object... args) {
+        this.ongoingInstructions.put(name, Arrays.asList(args))
+        return this
+    }
+
+    void buildInstructions() {
+        ongoingInstructions.entries().each() {
+            def name = it.key
+            def args = it.value
+            def varArgs = []
+            args.each {
+                if (Closure.class.isAssignableFrom(it.getClass())) {
+                    varArgs.add(Closure.cast(it).call());
+                } else {
+                    varArgs.add(it);
+                }
+            }
+            this.append("${name.toUpperCase()} ${varArgs.join(' ')}");
+        }
     }
 
     void writeToFile(File destination) {
@@ -74,7 +99,7 @@ class Dockerfile {
             return callWithLowerCaseName(name, args)
         }
         log.debug('No explicit method declaration for "{}({})" found. Using default implementation.', name, args.join(', '))
-        this.append("${name.toUpperCase()} ${args.join(' ')}")
+        this.appendOngoing(name, args as Object[])
     }
 
     def callWithLowerCaseName(String name, args) {
@@ -102,11 +127,11 @@ class Dockerfile {
     }
 
     void cmd(List cmd) {
-        this.append('CMD ["' + cmd.join('", "') + '"]')
+        this.appendOngoing("CMD", '["' + cmd.join('", "') + '"]')
     }
 
     void entrypoint(List cmd) {
-        this.append('ENTRYPOINT ["' + cmd.join('", "') + '"]')
+        this.appendOngoing("ENTRYPOINT", '["' + cmd.join('", "') + '"]')
     }
 
     private static boolean isUrl(String url) {
@@ -119,23 +144,22 @@ class Dockerfile {
     }
 
     void add(URL source, String destination='/') {
-        this.append("ADD ${source.toString()} ${destination}")
+        this.appendOngoing("ADD", "${source.toString()}", "${destination}")
     }
 
     void add(String source, String destination='/') {
         if(isUrl(source)) {
-            this.append("ADD ${source} ${destination}")
+            this.appendOngoing("ADD", "${source}", "${destination}")
         } else {
             add(resolvePathCallback(source), destination)
         }
     }
 
-    void add(File source, String destination='/') {
+    void add(File source, String destination = '/') {
         File target
         if (source.isDirectory()) {
             target = new File(contextDir, source.name)
-        }
-        else {
+        } else {
             target = contextDir
         }
         stagingBacklog.add { ->
@@ -144,27 +168,26 @@ class Dockerfile {
                 into target
             }
         }
-        this.append("ADD ${source.name} ${destination}")
+        this.appendOngoing("ADD", "${source.name}", "${destination}")
     }
 
     void add(Closure copySpec) {
-        final tarFile = new File(contextDir, "add_${instructions.size()+1}.tar")
+        final tarFile = new File(contextDir, "add_${ongoingInstructions.size() + 1}.tar")
         stagingBacklog.add { ->
             createTarArchive(tarFile, copySpec)
         }
-        instructions.add("ADD ${tarFile.name} ${'/'}")
+        this.appendOngoing("ADD", "${tarFile.name}", "${'/'}")
     }
 
-    void copy(String source, String destination='/') {
+    void copy(String source, String destination = '/') {
         copy(resolvePathCallback(source), destination)
     }
 
-    void copy(File source, String destination='/') {
+    void copy(File source, String destination = '/') {
         File target
         if (source.isDirectory()) {
             target = new File(contextDir, source.name)
-        }
-        else {
+        } else {
             target = contextDir
         }
         stagingBacklog.add { ->
@@ -173,15 +196,15 @@ class Dockerfile {
                 into target
             }
         }
-        this.append("COPY ${source.name} ${destination}")
+        this.appendOngoing("COPY", "${source.name}", "${destination}")
     }
 
     void copy(Closure copySpec) {
-        final tarFile = new File(contextDir, "copy_${instructions.size()+1}.tar")
+        final tarFile = new File(contextDir, "copy_${instructions.size() + 1}.tar")
         stagingBacklog.add { ->
             createTarArchive(tarFile, copySpec)
         }
-        instructions.add("COPY ${tarFile.name} ${'/'}")
+        this.appendOngoing("COPY", "${tarFile.name}", "${'/'}")
     }
 
     private void createTarArchive(File tarFile, Closure copySpec) {
